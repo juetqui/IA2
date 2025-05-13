@@ -1,0 +1,23 @@
+fileFormatVersion: 2
+guid: 87dbe2f1a583a1f4e9977b71453de0de
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontNames:
+  - Comfortaa
+  fallbackFontReferences:
+  - {fileID: 12800000, guid: 8583eb19ce5a14f44a33407ded797d08, type: 3}
+  - {fileID: 12800000, guid: 22d6e95f1f4a13045b7eaeac570bd3c5, type: 3}
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
