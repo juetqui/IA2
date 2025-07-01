@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 /// <summary>
@@ -24,12 +25,14 @@ public class GemPool : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < poolSize; i++)
-        {
-            GameObject gem = Instantiate(gemPrefab, Vector3.zero, Quaternion.identity);
-            gem.SetActive(false);
-            gemPool.Add(gem);
-        }
+        gemPool = Enumerable.Range(0, poolSize)
+            .Select(_ =>
+            {
+                var gem = Instantiate(gemPrefab, Vector3.zero, Quaternion.identity);
+                gem.SetActive(false);
+                return gem;
+            })
+            .ToList();
 
         SpawnInitialGems();
     }
@@ -53,20 +56,17 @@ public class GemPool : MonoBehaviour
     /// <returns>La gema obtenida o creada.</returns>
     public GameObject GetGem()
     {
-        foreach (var gem in gemPool)
+        var gem = gemPool.FirstOrDefault(g => !g.activeInHierarchy);
+
+        if (gem == null)
         {
-            if (!gem.activeInHierarchy)
-            {
-                InitializeGem(gem);
-                return gem;
-            }
+            gem = Instantiate(gemPrefab, Vector3.zero, Quaternion.identity);
+            gem.SetActive(false);
+            gemPool.Add(gem);
         }
 
-        GameObject newGem = Instantiate(gemPrefab, Vector3.zero, Quaternion.identity);
-        newGem.SetActive(false);
-        gemPool.Add(newGem);
-        InitializeGem(newGem);
-        return newGem;
+        InitializeGem(gem);
+        return gem;
     }
 
     /// <summary>

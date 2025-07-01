@@ -3,10 +3,6 @@ using System.Linq;
 using UnityEngine;
 using TMPro;
 
-/// <summary>
-/// Gestiona la mochila del jugador, permitiendo recolectar y depositar gemas, actualizar la UI,
-/// y realizar operaciones de agregación y filtrado con LINQ.
-/// </summary>
 public class PlayerBackpack : MonoBehaviour
 {
     private List<Gem> backpack = new List<Gem>();
@@ -21,6 +17,7 @@ public class PlayerBackpack : MonoBehaviour
     [SerializeField] private TextMeshProUGUI gemTypesText;
     [SerializeField] private TextMeshProUGUI warningText;
     [SerializeField] private TextMeshProUGUI totalValueText; // Nuevo contador para el valor depositado
+    [SerializeField] private TextMeshProUGUI lastActionText;
     [SerializeField] private float warningDisplayTime = 2f;
 
     [Header("References")]
@@ -28,88 +25,9 @@ public class PlayerBackpack : MonoBehaviour
 
     private float warningTimer;
 
-    /// <summary>
-    /// Inicializa la UI de la mochila.
-    /// </summary>
     void Start()
     {
         UpdateUI();
-    }
-
-    /// <summary>
-    /// Actualiza el temporizador para el mensaje de advertencia.
-    /// </summary>
-    void Update()
-    {
-        if (warningTimer > 0)
-        {
-            warningTimer -= Time.deltaTime;
-            if (warningTimer <= 0 && warningText != null)
-            {
-                warningText.text = "";
-            }
-        }
-    }
-
-    /// <summary>
-    /// Detecta colisiones con gemas y las recolecta si no se excede el peso máximo.
-    /// </summary>
-    /// <param name="other">El collider del objeto colisionado.</param>
-    void OnTriggerEnter(Collider other)
-    {
-        if (other.gameObject.CompareTag("Gem"))
-        {
-            Gem gem = other.gameObject.GetComponent<Gem>();
-            if (gem != null)
-            {
-                float currentWeight = backpack.Sum(g => g.Weight);
-                if (currentWeight + gem.Weight <= maxWeight)
-                {
-                    backpack.Add(gem);
-                    ProcessGemCollection(gem);
-                    gem.Deactivate();
-                    if (gemPool != null)
-                    {
-                        gemPool.SpawnGem();
-                    }
-                    UpdateUI();
-                }
-                else
-                {
-                    if (warningText != null)
-                    {
-                        warningText.text = "¡Mochila llena! Peso máximo alcanzado.";
-                        warningTimer = warningDisplayTime;
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Deposita todas las gemas de la mochila en el punto de depósito y actualiza la UI.
-    /// </summary>
-    public void DepositGems()
-    {
-        if (backpack.Count > 0)
-        {
-            depositedGems.AddRange(backpack);
-            backpack.Clear();
-            if (warningText != null)
-            {
-                warningText.text = "Gemas depositadas correctamente.";
-                warningTimer = warningDisplayTime;
-            }
-            UpdateUI();
-        }
-        else
-        {
-            if (warningText != null)
-            {
-                warningText.text = "No hay gemas para depositar.";
-                warningTimer = warningDisplayTime;
-            }
-        }
     }
 
     /// <summary>
@@ -158,6 +76,108 @@ public class PlayerBackpack : MonoBehaviour
     }
 
     /// <summary>
+    /// Actualiza el temporizador para el mensaje de advertencia.
+    /// </summary>
+    void Update()
+    {
+        if (warningTimer > 0)
+        {
+            warningTimer -= Time.deltaTime;
+            if (warningTimer <= 0 && warningText != null)
+            {
+                warningText.text = "";
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.V))
+        {
+            DepositTopValuableGems(); // Deposita las top 3
+        }
+    }
+
+    /// <summary>
+    /// Detecta colisiones con gemas y las recolecta si no se excede el peso máximo.
+    /// </summary>
+    /// <param name="other">El collider del objeto colisionado.</param>
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.gameObject.CompareTag("Gem"))
+        {
+            Gem gem = other.gameObject.GetComponent<Gem>();
+            if (gem != null)
+            {
+                float currentWeight = backpack.Sum(g => g.Weight);
+                if (currentWeight + gem.Weight <= maxWeight)
+                {
+                    backpack.Add(gem);
+                    ProcessGemCollection(gem);
+                    gem.Deactivate();
+                    if (gemPool != null)
+                    {
+                        gemPool.SpawnGem();
+                    }
+                    UpdateUI();
+                }
+                else
+                {
+                    if (warningText != null)
+                    {
+                        warningText.text = "¡Mochila llena! Peso máximo alcanzado.";
+                        warningTimer = warningDisplayTime;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Procesa la recolección de una gema usando un tipo anónimo para registrar la acción.
+    /// </summary>
+    /// <param name="gem">La gema recolectada.</param>
+    private void ProcessGemCollection(Gem gem)
+    {
+        var collectionAction = new    
+        {
+            Action = "Collected",
+            GemType = gem.Type,
+            Value = gem.Value,
+            Weight = gem.Weight,
+            Timestamp = Time.time
+        };
+
+        if (lastActionText != null)
+        {
+            lastActionText.text = $"{collectionAction.Action}: {collectionAction.GemType} (Valor: {collectionAction.Value})";
+        }
+    }
+
+    /// <summary>
+    /// Deposita todas las gemas de la mochila en el punto de depósito y actualiza la UI.
+    /// </summary>
+    public void DepositGems()
+    {
+        if (backpack.Count > 0)
+        {
+            depositedGems.AddRange(backpack);
+            backpack.Clear();
+            if (warningText != null)
+            {
+                warningText.text = "Gemas depositadas correctamente.";
+                warningTimer = warningDisplayTime;
+            }
+            UpdateUI();
+        }
+        else
+        {
+            if (warningText != null)
+            {
+                warningText.text = "No hay gemas para depositar.";
+                warningTimer = warningDisplayTime;
+            }
+        }
+    }
+
+    /// <summary>
     /// Agrupa estadísticas de las gemas por tipo (valor total, peso total, cantidad).
     /// </summary>
     /// <returns>Un diccionario con las estadísticas por tipo de gema.</returns>
@@ -188,6 +208,32 @@ public class PlayerBackpack : MonoBehaviour
     }
 
     /// <summary>
+    /// Obtiene una lista de tipos de gemas únicos (LINQ ToList).
+    /// </summary>
+    /// <returns>Una lista de tipos de gemas.</returns>
+    private List<string> GetGemTypes()
+    {
+        return backpack.Select(g => g.Type).Distinct().ToList();
+    }
+
+    public void DepositTopValuableGems(int count = 3)
+    {
+        var topGems = GetOrderedGemsByValue().Take(count).ToList();
+
+        backpack.RemoveAll(g => topGems.Contains(g));
+
+        depositedGems.AddRange(topGems);
+
+        if (warningText != null)
+        {
+            warningText.text = $"Depositaste tus {topGems.Count} gemas más valiosas.";
+            warningTimer = warningDisplayTime;
+        }
+
+        UpdateUI();
+    }
+
+    /// <summary>
     /// Obtiene gemas ordenadas por valor descendente con time-slicing (LINQ OrderBy).
     /// </summary>
     /// <returns>Una enumeración de gemas ordenadas.</returns>
@@ -203,38 +249,4 @@ public class PlayerBackpack : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Obtiene una lista de tipos de gemas únicos (LINQ ToList).
-    /// </summary>
-    /// <returns>Una lista de tipos de gemas.</returns>
-    private List<string> GetGemTypes()
-    {
-        return backpack.Select(g => g.Type).Distinct().ToList();
-    }
-
-    /// <summary>
-    /// Registra un evento de recolección de gema como una tupla.
-    /// </summary>
-    /// <param name="gem">La gema recolectada.</param>
-    /// <returns>Una tupla con tipo, valor, peso y timestamp.</returns>
-    private (string GemType, int Value, float Weight, float Timestamp) RecordCollection(Gem gem)
-    {
-        return (gem.Type, gem.Value, gem.Weight, Time.time);
-    }
-
-    /// <summary>
-    /// Procesa la recolección de una gema usando un tipo anónimo para registrar la acción.
-    /// </summary>
-    /// <param name="gem">La gema recolectada.</param>
-    private void ProcessGemCollection(Gem gem)
-    {
-        var collectionAction = new
-        {
-            Action = "Collected",
-            GemType = gem.Type,
-            Value = gem.Value,
-            Weight = gem.Weight,
-            Timestamp = Time.time
-        };
-    }
 }
