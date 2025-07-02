@@ -73,16 +73,10 @@ public class EnvironmentAnalyzer : MonoBehaviour
             );
     }
 
-    /// <summary>
-    /// Verifica si hay gemas con valor mayor a 40 (LINQ Any).
-    /// </summary>
-    /// <returns>True si hay gemas de alto valor, false en caso contrario.</returns>
+    //LINQ
     private bool HasHighValueGems() => gemsInScene.Take(5).OrderByDescending(g =>g.Value).Any(g => g.Value > 40);
 
-    /// <summary>
-    /// Obtiene la gema más cercana (simulada con selección aleatoria) como tupla.
-    /// </summary>
-    /// <returns>Una tupla con tipo, valor y distancia simulada.</returns>
+    //TUPLA
     private (string Type, int Value, float Distance) GetClosestGem()
     {
         var gem = gemsInScene.OrderByDescending(g => Random.value).ToList().FirstOrDefault();          
