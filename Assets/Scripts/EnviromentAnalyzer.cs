@@ -7,28 +7,20 @@ public class EnvironmentAnalyzer : MonoBehaviour
 {
     [SerializeField] private GemPool gemPool;
     [SerializeField] private TextMeshProUGUI environmentStatsText;
+    [SerializeField] private TextMeshProUGUI topGemsText;
+    [SerializeField] private TextMeshProUGUI groupedGemsText;
 
     private List<Gem> gemsInScene = new List<Gem>();
-
     void Start()
     {
         UpdateGemsInScene();
         UpdateEnvironmentUI();
     }
 
-    void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            UpdateGemsInScene();
-            UpdateEnvironmentUI();
-        }
-    }
-
     /// <summary>
     /// Actualiza la lista de gemas activas en la escena.
     /// </summary>
-    private void UpdateGemsInScene()
+    public void UpdateGemsInScene()
     {
         gemsInScene.Clear();
         if (gemPool != null)
@@ -46,10 +38,11 @@ public class EnvironmentAnalyzer : MonoBehaviour
     /// <summary>
     /// Actualiza la UI con estadísticas del entorno.
     /// </summary>
-    private void UpdateEnvironmentUI()
+    public void UpdateEnvironmentUI()
     {
         if (environmentStatsText != null)
         {
+            UpdateTopGemsUI();
             var ranges = GetGemValueRanges();
             string statsText = $"Entorno ({gemsInScene.Count} gemas):\n";
             statsText += $"Gemas valiosas (>40): {(HasHighValueGems() ? "Sí" : "No")}\n";
@@ -99,6 +92,27 @@ public class EnvironmentAnalyzer : MonoBehaviour
         return (gem?.Type ?? "None", gem?.Value ?? 0, Random.Range(1f, 10f));
     }
 
+    private void UpdateTopGemsUI()
+    {
+        if (topGemsText == null) return;
+
+        var topGems = GetTopGems().ToList();
+        if (topGems.Count == 0)
+        {
+            topGemsText.text = "Top 5 gemas: ninguna activa.";
+            return;
+        }
+
+        string info = "Top 5 gemas:\n";
+        foreach (var gem in topGems)
+        {
+            info += $"- {gem.Type} (Valor: {gem.Value}, Peso: {gem.Weight:F1})\n";
+        }
+
+        topGemsText.text = info;
+    }
+
+
     /// <summary>
     /// Obtiene las primeras 5 gemas de la escena (LINQ Take).
     /// </summary>
@@ -110,6 +124,20 @@ public class EnvironmentAnalyzer : MonoBehaviour
             yield return gem;
         }
     }
+
+    public IEnumerator<WaitForSeconds> DisplayGroupedGems()
+    {
+        groupedGemsText.text = "Agrupando gemas por tipo...\n";
+
+        foreach (var gem in GetGemsByType())
+        {
+            groupedGemsText.text += $"- {gem.Type}: Valor {gem.Value}, Peso {gem.Weight:F1}\n";
+            yield return new WaitForSeconds(0.1f); // una gema cada 0.1 seg
+        }
+
+        groupedGemsText.text += "\nFin del escaneo.";
+    }
+
 
     /// <summary>
     /// Obtiene gemas agrupadas por tipo con time-slicing (LINQ GroupBy).

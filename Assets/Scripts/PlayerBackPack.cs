@@ -9,6 +9,8 @@ public class PlayerBackpack : MonoBehaviour
     private List<Gem> depositedGems = new List<Gem>(); // Almacena las gemas depositadas
     private float maxWeight = 50f;
 
+    [SerializeField] private EnvironmentAnalyzer environmentAnalyzer;
+
     [Header("UI Elements")]
     [SerializeField] private TextMeshProUGUI gemCountText;
     [SerializeField] private TextMeshProUGUI totalWeightText;
@@ -22,12 +24,47 @@ public class PlayerBackpack : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private GemPool gemPool;
+    private Coroutine rotatingGemsCoroutine;
+
 
     private float warningTimer;
 
     void Start()
     {
         UpdateUI();
+    }
+
+    void Update()
+    {
+        if (warningTimer > 0)
+        {
+            warningTimer -= Time.deltaTime;
+            if (warningTimer <= 0 && warningText != null)
+            {
+                warningText.text = "";
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.V))
+        {
+            DepositTopValuableGems(); // Deposita las top 3
+        }
+
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            environmentAnalyzer.UpdateGemsInScene();
+            environmentAnalyzer.UpdateEnvironmentUI();
+        }
+
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            if (rotatingGemsCoroutine != null)
+            {
+                StopCoroutine(rotatingGemsCoroutine);
+            }
+
+            rotatingGemsCoroutine = StartCoroutine(environmentAnalyzer.DisplayGroupedGems());
+        }
     }
 
     /// <summary>
@@ -72,26 +109,6 @@ public class PlayerBackpack : MonoBehaviour
         {
             int totalValue = depositedGems.Sum(g => g.Value);
             totalValueText.text = $"Valor depositado: {totalValue}";
-        }
-    }
-
-    /// <summary>
-    /// Actualiza el temporizador para el mensaje de advertencia.
-    /// </summary>
-    void Update()
-    {
-        if (warningTimer > 0)
-        {
-            warningTimer -= Time.deltaTime;
-            if (warningTimer <= 0 && warningText != null)
-            {
-                warningText.text = "";
-            }
-        }
-
-        if (Input.GetKeyDown(KeyCode.V))
-        {
-            DepositTopValuableGems(); // Deposita las top 3
         }
     }
 
