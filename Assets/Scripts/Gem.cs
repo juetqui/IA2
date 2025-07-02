@@ -1,46 +1,65 @@
+// Gem.cs
+using System;
 using UnityEngine;
 
 /// <summary>
 /// Representa una gema en el juego, con propiedades como tipo, valor y peso.
-/// Permite inicializar la gema y desactivarla.
+/// Emite un evento cuando se desactiva para que otros sistemas puedan suscribirse.
 /// </summary>
+[RequireComponent(typeof(Renderer))]
 public class Gem : MonoBehaviour
 {
-    public string Type { get; private set; }
-    public int Value { get; private set; }
-    public float Weight { get; private set; }
+    public string Type   { get; private set; }
+    public int    Value  { get; private set; }
+    public float  Weight { get; private set; }
 
     /// <summary>
-    /// Inicializa la gema con un tipo, valor y peso espec�ficos.
-    /// Cambia el color del material seg�n el tipo de gema.
+    /// Se dispara cuando la gema se desactiva (por ejemplo, al depositarse).
     /// </summary>
-    /// <param name="type">Tipo de gema (Red, Blue, Green).</param>
-    /// <param name="value">Valor en puntos de la gema.</param>
-    /// <param name="weight">Peso de la gema.</param>
-    public void Initialize(string type, int value, float weight)
+    public static event Action<Gem> OnGemDeactivated;
+
+    /// <summary>
+    /// Inicializa la gema con valores específicos y resetea su transform.
+    /// </summary>
+    /// <param name="type">“Red”, “Blue”, “Green”, “Rare” u otro.</param>
+    /// <param name="value">Valor en puntos (>= 0).</param>
+    /// <param name="weight">Peso (> 0).</param>
+    public virtual void Initialize(string type, int value, float weight)
     {
-        Type = type;
-        Value = value;
+        // Validación mínima
+        if (value < 0 || weight <= 0f)
+            Debug.LogWarning($"[Gem] Valores inválidos: value={value}, weight={weight}");
+
+        // Reset de transform
+        transform.localPosition = Vector3.zero;
+        transform.localRotation = Quaternion.identity;
+        transform.localScale    = Vector3.one;
+
+        Type   = type;
+        Value  = value;
         Weight = weight;
 
+        // Color según tipo
         var renderer = GetComponent<Renderer>();
         if (renderer != null)
         {
-            renderer.material.color = type switch
+            switch (type)
             {
-                "Red" => Color.red,
-                "Blue" => Color.blue,
-                "Green" => Color.green,
-                _ => Color.white
-            };
+                case "Red":    renderer.material.color = Color.red;    break;
+                case "Blue":   renderer.material.color = Color.blue;   break;
+                case "Green":  renderer.material.color = Color.green;  break;
+                case "Rare":   renderer.material.color = Color.yellow; break;
+                default:       renderer.material.color = Color.white;  break;
+            }
         }
     }
 
     /// <summary>
-    /// Desactiva la gema en la escena.
+    /// Desactiva la gema y notifica a los suscriptores.
     /// </summary>
     public void Deactivate()
     {
+        OnGemDeactivated?.Invoke(this);
         gameObject.SetActive(false);
     }
 }

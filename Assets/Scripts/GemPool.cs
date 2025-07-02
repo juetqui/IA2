@@ -1,106 +1,117 @@
+// GemPool.cs
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-/// <summary>
-/// Gestiona un pool de objetos para gemas, permitiendo reutilizar instancias en lugar de instanciar/destruir.
-/// Genera gemas en posiciones aleatorias dentro de un área definida.
-/// </summary>
 public class GemPool : MonoBehaviour
 {
+    [Header("Prefabs")]
     [SerializeField] private GameObject gemPrefab;
+    [SerializeField] private GameObject rareGemPrefab;
+
+    [Header("Pool Settings")]
     [SerializeField] private int poolSize = 20;
-    [SerializeField] private Vector3 spawnAreaMin = new Vector3(-10f, 0.5f, -10f);
-    [SerializeField] private Vector3 spawnAreaMax = new Vector3(10f, 0.5f, 10f);
+    [Range(0f,1f)] [SerializeField] private float rareChance = 0.1f;
+    [SerializeField] private Vector3 spawnAreaMin = new Vector3(-10f,0.5f,-10f);
+    [SerializeField] private Vector3 spawnAreaMax = new Vector3( 10f,0.5f, 10f);
 
     private List<GameObject> gemPool = new List<GameObject>();
+    private List<object> spawnHistory = new List<object>();
 
-    /// <summary>
-    /// Inicializa el pool de gemas y genera las gemas iniciales.
-    /// </summary>
     void Start()
     {
         if (gemPrefab == null)
         {
+            Debug.LogError("[GemPool] gemPrefab no asignado.");
+            enabled = false;
             return;
         }
 
-        gemPool = Enumerable.Range(0, poolSize)
-            .Select(_ =>
-            {
-                var gem = Instantiate(gemPrefab, Vector3.zero, Quaternion.identity);
-                gem.SetActive(false);
-                return gem;
-            })
-            .OrderBy(x => x.name)
-            .ToList();
-
-        SpawnInitialGems();
-    }
-
-    /// <summary>
-    /// Genera un número inicial de gemas en la escena.
-    /// </summary>
-    private void SpawnInitialGems()
-    {
-        int gemsToSpawn = Mathf.Min(10, poolSize);
-        for (int i = 0; i < gemsToSpawn; i++)
+        // Crear pool de normales y parentarlas a este transform
+        for (int i = 0; i < poolSize; i++)
         {
-            SpawnGem();
-        }
-    }
-
-    /// <summary>
-    /// Obtiene una gema inactiva del pool o crea una nueva si no hay disponibles.
-    /// Inicializa y activa la gema.
-    /// </summary>
-    /// <returns>La gema obtenida o creada.</returns>
-    public GameObject GetGem()
-    {
-        var gem = gemPool.FirstOrDefault(g => !g.activeInHierarchy);
-
-        if (gem == null)
-        {
-            gem = Instantiate(gemPrefab, Vector3.zero, Quaternion.identity);
-            gem.SetActive(false);
-            gemPool.Add(gem);
+            var go = Instantiate(gemPrefab, transform);
+            go.SetActive(false);
+            gemPool.Add(go);
         }
 
-        InitializeGem(gem);
-        return gem;
+        StartCoroutine(SpawnWithDelay(Mathf.Min(10, poolSize), 0.05f));
     }
 
-    /// <summary>
-    /// Inicializa una gema con propiedades aleatorias (tipo, valor, peso) y la posiciona en un lugar aleatorio.
-    /// </summary>
-    /// <param name="gem">La gema a inicializar.</param>
-    private void InitializeGem(GameObject gem)
+    public void SpawnGem()
     {
-        Gem gemScript = gem.GetComponent<Gem>();
+        bool makeRare = rareGemPrefab != null && Random.value < rareChance;
+        GameObject go;
+
+        if (makeRare)
+        {
+            go = Instantiate(rareGemPrefab, transform);
+        }
+        else
+        {
+            go = GetFromPool();
+        }
+
+        InitializeSpawn(go, makeRare);
+    }
+
+    private GameObject GetFromPool()
+    {
+        var go = gemPool.FirstOrDefault(g => !g.activeInHierarchy);
+        if (go == null)
+        {
+            go = Instantiate(gemPrefab, transform);
+            go.SetActive(false);
+            gemPool.Add(go);
+        }
+        return go;
+    }
+
+    private void InitializeSpawn(GameObject go, bool isRare)
+    {
+        var gemScript = go.GetComponent<Gem>();
         if (gemScript != null)
         {
-            string type = Random.Range(0, 3) == 0 ? "Red" : Random.Range(0, 2) == 0 ? "Blue" : "Green";
-            int value = Random.Range(10, 50);
-            float weight = Random.Range(1f, 10f);
+            string type   = isRare
+                ? "Rare"
+                : Random.Range(0,3) == 0 ? "Red"
+                    : Random.Range(0,2) == 0 ? "Blue"
+                        : "Green";
+
+            int    value  = isRare
+                ? Random.Range(50, 100)
+                : Random.Range(10, 50);
+
+            float  weight = isRare
+                ? Random.Range(5f, 15f)
+                : Random.Range(1f, 10f);
+
             gemScript.Initialize(type, value, weight);
+
+            spawnHistory.Add(new {
+                Event     = isRare ? "SpawnRare" : "Spawn",
+                Type      = type,     // CORRECCIÃ“N: variable local 'type'
+                Value     = value,
+                Weight    = weight,
+                Timestamp = Time.time
+            });
         }
 
-        Vector3 spawnPosition = new Vector3(
+        go.transform.position = new Vector3(
             Random.Range(spawnAreaMin.x, spawnAreaMax.x),
             spawnAreaMin.y,
             Random.Range(spawnAreaMin.z, spawnAreaMax.z)
         );
-        gem.transform.position = spawnPosition;
-
-        gem.SetActive(true);
+        go.SetActive(true);
     }
 
-    /// <summary>
-    /// Genera una nueva gema en la escena reutilizando una del pool.
-    /// </summary>
-    public void SpawnGem()
+    public IEnumerator SpawnWithDelay(int count, float delay)
     {
-        GameObject gem = GetGem();
-        gem.SetActive(true);
+        for (int i = 0; i < count; i++)
+        {
+            SpawnGem();
+            yield return new WaitForSeconds(delay);
+        }
     }
 }

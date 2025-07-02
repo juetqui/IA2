@@ -485,7 +485,7 @@ GameObject:
   - component: {fileID: 8477055827492619018}
   m_Layer: 0
   m_Name: First Person Controller
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -525,7 +525,7 @@ CapsuleCollider:
     m_Bits: 0
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
-  m_ProvidesContacts: 0
+  m_ProvidesContacts: 1
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.5
@@ -558,7 +558,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 80
-  m_CollisionDetection: 1
+  m_CollisionDetection: 2
 --- !u!114 &114963311885979670
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -619,6 +619,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6881d5cf6db45994cbc4c0412d7c3be2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  environmentAnalyzer: {fileID: 0}
+  gemCountText: {fileID: 0}
+  totalWeightText: {fileID: 0}
+  gemStatsText: {fileID: 0}
+  highValueGemsText: {fileID: 0}
+  gemTypesText: {fileID: 0}
+  warningText: {fileID: 0}
+  totalValueText: {fileID: 0}
+  lastActionText: {fileID: 0}
+  warningDisplayTime: 2
+  totalCollectedText: {fileID: 0}
+  totalDepositedText: {fileID: 0}
+  avgValueText: {fileID: 0}
+  maxWeightTextUI: {fileID: 0}
+  mostFreqCollectedText: {fileID: 0}
+  mostFreqDepositedText: {fileID: 0}
+  gemPool: {fileID: 0}
 --- !u!1 &1963958859065967600
 GameObject:
   m_ObjectHideFlags: 0

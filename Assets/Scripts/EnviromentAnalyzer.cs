@@ -1,148 +1,160 @@
+// EnvironmentAnalyzer.cs
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 using TMPro;
 
 public class EnvironmentAnalyzer : MonoBehaviour
 {
-    [SerializeField] private GemPool gemPool;
+    [Header("Referencias")]
+    [SerializeField] private Transform playerTransform;
+
+    [Header("UI Elements")]
     [SerializeField] private TextMeshProUGUI environmentStatsText;
     [SerializeField] private TextMeshProUGUI topGemsText;
     [SerializeField] private TextMeshProUGUI groupedGemsText;
+    [SerializeField] private TextMeshProUGUI rareGemsSceneText;
 
     private List<Gem> gemsInScene = new List<Gem>();
+
     void Start()
     {
-        UpdateGemsInScene();
         UpdateEnvironmentUI();
     }
 
     /// <summary>
-    /// Actualiza la lista de gemas activas en la escena.
+    /// Obtiene todas las Gem activas en la escena.
     /// </summary>
     public void UpdateGemsInScene()
     {
-        gemsInScene.Clear();
-        if (gemPool != null)
-        {
-            foreach (var gemObject in gemPool.GetComponentsInChildren<Gem>(false))
-            {
-                if (gemObject.gameObject.activeInHierarchy)
-                {
-                    gemsInScene.Add(gemObject);
-                }
-            }
-        }
+        gemsInScene = FindObjectsOfType<Gem>()
+            .Where(g => g.gameObject.activeInHierarchy)
+            .ToList();
+
+        Debug.Log($"[Env] Gemas en escena: {gemsInScene.Count}");
+        foreach (var gem in gemsInScene)
+            Debug.Log($"[Env] Gema '{gem.Type}' en posiciÃ³n {gem.transform.position}");
     }
 
     /// <summary>
-    /// Actualiza la UI con estadísticas del entorno.
+    /// Actualiza la UI completa.
     /// </summary>
     public void UpdateEnvironmentUI()
     {
-        if (environmentStatsText != null)
+        if (environmentStatsText == null) return;
+
+        UpdateGemsInScene();
+
+        int total = gemsInScene.Count;
+        var values  = gemsInScene.Select(g => g.Value);
+        var weights = gemsInScene.Select(g => g.Weight);
+
+        int   minValue  = total>0?values.Min():0;
+        int   maxValue  = total>0?values.Max():0;
+        float avgValue  = total>0?(float)values.Average():0f;
+        float minWeight = total>0?weights.Min():0f;
+        float maxWeight = total>0?weights.Max():0f;
+        float avgWeight = total>0?(float)weights.Average():0f;
+
+        const int highThreshold = 40;
+        int highCount = gemsInScene.Count(g=>g.Value>highThreshold);
+        float pctHigh = total>0?100f*highCount/total:0f;
+
+        int rareCount = gemsInScene.OfType<RareGem>().Count();
+        if (rareGemsSceneText!=null)
+            rareGemsSceneText.text = $"Gemas Raras: {rareCount}";
+
+        var ranges = gemsInScene
+            .GroupBy(g => g.Value<20?"Low":g.Value<40?"Medium":"High")
+            .ToDictionary(grp=>grp.Key,grp=>grp.Count());
+
+        var countByType = gemsInScene
+            .GroupBy(g=>g.Type)
+            .ToDictionary(grp=>grp.Key,grp=>grp.Count());
+
+        (string Type,int Value,float Distance) closestInfo = ("None",0,0f);
+        if (playerTransform!=null && total>0)
         {
-            UpdateTopGemsUI();
-            var ranges = GetGemValueRanges();
-            string statsText = $"Entorno ({gemsInScene.Count} gemas):\n";
-            statsText += $"Gemas valiosas (>40): {(HasHighValueGems() ? "Sí" : "No")}\n";
-            foreach (var range in ranges)
-            {
-                statsText += $"{range.Key}: {range.Value.Count} gemas, Peso promedio: {range.Value.AvgWeight:F1}\n";
-            }
-            var closestGem = GetClosestGem();
-            statsText += $"Gema más cercana: {closestGem.Type} (Valor: {closestGem.Value}, Distancia: {closestGem.Distance:F1})";
-            environmentStatsText.text = statsText;
+            var closest = gemsInScene
+                .OrderBy(g=>Vector3.Distance(playerTransform.position,g.transform.position))
+                .First();
+            float dist = Vector3.Distance(playerTransform.position,closest.transform.position);
+            closestInfo = (closest.Type,closest.Value,dist);
         }
-    }
 
-    /// <summary>
-    /// Agrupa gemas por rangos de valor (bajo, medio, alto) y calcula cantidad y peso promedio.
-    /// </summary>
-    /// <returns>Un diccionario con estadísticas por rango de valor.</returns>
-    private Dictionary<string, (int Count, float AvgWeight)> GetGemValueRanges()
-    {
-        return gemsInScene
-            .GroupBy(g => g.Value < 20 ? "Low" : g.Value < 40 ? "Medium" : "High")
-            .ToDictionary(
-                group => group.Key,
-                group => (
-                    Count: group.Count(),
-                    AvgWeight: group.Average(g => g.Weight)
-                )
-            );
-    }
+        var sb = new StringBuilder();
+        sb.AppendLine($"<b>Entorno:</b> {total} gemas");
+        sb.AppendLine($"Valor â†’ Min:{minValue}, MÃ¡x:{maxValue}, Prom:{avgValue:F1}");
+        sb.AppendLine($"Peso  â†’ Min:{minWeight:F1}, MÃ¡x:{maxWeight:F1}, Prom:{avgWeight:F1}");
+        sb.AppendLine($"Gemas >{highThreshold}: {highCount} ({pctHigh:F1}%)");
+        sb.AppendLine($"Gemas Raras: {rareCount}");
+        sb.AppendLine();
+        sb.AppendLine("<b>Por rango:</b>");
+        foreach(var kv in ranges) sb.AppendLine($"â€¢{kv.Key}: {kv.Value}");
+        sb.AppendLine();
+        sb.AppendLine("<b>Por tipo:</b>");
+        foreach(var kv in countByType) sb.AppendLine($"â€¢{kv.Key}: {kv.Value}");
+        sb.AppendLine();
+        sb.AppendLine($"<b>Cercana:</b> {closestInfo.Type} (V:{closestInfo.Value}, D:{closestInfo.Distance:F1}m)");
 
-    //LINQ
-    private bool HasHighValueGems() => gemsInScene.Take(5).OrderByDescending(g =>g.Value).Any(g => g.Value > 40);
+        environmentStatsText.text = sb.ToString();
 
-    //TUPLA
-    private (string Type, int Value, float Distance) GetClosestGem()
-    {
-        var gem = gemsInScene.OrderByDescending(g => Random.value).ToList().FirstOrDefault();          
-        return (gem?.Type ?? "None", gem?.Value ?? 0, Random.Range(1f, 10f));
+        UpdateTopGemsUI();
+        if(groupedGemsText!=null) groupedGemsText.text = string.Empty;
     }
 
     private void UpdateTopGemsUI()
     {
-        if (topGemsText == null) return;
+        if (topGemsText==null) return;
 
-        var topGems = GetTopGems().ToList();
-        if (topGems.Count == 0)
+        var top5 = gemsInScene.Take(5).ToList();
+        if(top5.Count==0)
         {
             topGemsText.text = "Top 5 gemas: ninguna activa.";
             return;
         }
 
-        string info = "Top 5 gemas:\n";
-        foreach (var gem in topGems)
+        var sb = new StringBuilder("<b>Top 5 gemas:</b>\n");
+        foreach(var gem in top5)
         {
-            info += $"- {gem.Type} (Valor: {gem.Value}, Peso: {gem.Weight:F1})\n";
+            string line = $"- {gem.Type} (V:{gem.Value}, W:{gem.Weight:F1})";
+            if(gem is RareGem) line = $"<color=magenta>{line}</color>";
+            sb.AppendLine(line);
         }
-
-        topGemsText.text = info;
+        topGemsText.text = sb.ToString();
     }
 
-
-    /// <summary>
-    /// Obtiene las primeras 5 gemas de la escena (LINQ Take).
-    /// </summary>
-    /// <returns>Una enumeración de hasta 5 gemas.</returns>
-    private IEnumerable<Gem> GetTopGems()
+    public IEnumerator DisplayGroupedGems()
     {
-        foreach (var gem in gemsInScene.Take(5))
+        if(groupedGemsText==null) yield break;
+
+        groupedGemsText.text = "<b>Agrupando por tipo...</b>\n";
+        var byType = gemsInScene.GroupBy(g=>g.Type);
+        foreach(var grp in byType)
         {
-            yield return gem;
+            groupedGemsText.text += $"<b>{grp.Key} ({grp.Count()}):</b>\n";
+            yield return new WaitForSeconds(0.1f);
+            foreach(var gem in grp.Take(3))
+            {
+                string line = $"    - V:{gem.Value}, W:{gem.Weight:F1}";
+                if(gem is RareGem) line = $"<color=magenta>{line}</color>";
+                groupedGemsText.text += line + "\n";
+                yield return new WaitForSeconds(0.1f);
+            }
         }
-    }
-
-    public IEnumerator<WaitForSeconds> DisplayGroupedGems()
-    {
-        groupedGemsText.text = "Agrupando gemas por tipo...\n";
-
-        foreach (var gem in GetGemsByType())
-        {
-            groupedGemsText.text += $"- {gem.Type}: Valor {gem.Value}, Peso {gem.Weight:F1}\n";
-            yield return new WaitForSeconds(0.1f); // una gema cada 0.1 seg
-        }
-
         groupedGemsText.text += "\nFin del escaneo.";
     }
 
-
     /// <summary>
-    /// Obtiene gemas agrupadas por tipo con time-slicing (LINQ GroupBy).
+    /// Dibuja siempre un gizmo para cada gema detectada.
     /// </summary>
-    /// <returns>Una enumeración de gemas agrupadas.</returns>
-    private IEnumerable<Gem> GetGemsByType()
+    void OnDrawGizmos()
     {
-        var groupedGems = gemsInScene.GroupBy(g => g.Type).SelectMany(g => g).Take(5).ToList();
-        for (int i = 0; i < groupedGems.Count; i++)
-        {
-            if (Time.frameCount % 3 == 0)
-            {
-                yield return groupedGems[i];
-            }
-        }
+        if (gemsInScene == null) return;
+        Gizmos.color = Color.yellow;
+        foreach (var gem in gemsInScene)
+            Gizmos.DrawSphere(gem.transform.position, 0.2f);
     }
 }
