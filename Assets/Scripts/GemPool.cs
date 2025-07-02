@@ -32,6 +32,7 @@ public class GemPool : MonoBehaviour
                 gem.SetActive(false);
                 return gem;
             })
+            .OrderBy(x => x.name)
             .ToList();
 
         SpawnInitialGems();
