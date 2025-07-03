@@ -22,9 +22,8 @@ public class PlayerBackpack : MonoBehaviour
     [SerializeField] private TextMeshProUGUI totalValueText;
     [SerializeField] private TextMeshProUGUI lastActionText;
     [SerializeField] private float warningDisplayTime = 2f;
-    [SerializeField] private TextMeshProUGUI rareGemCountText; 
+    [SerializeField] private TextMeshProUGUI rareGemCountText;
     [SerializeField] private TextMeshProUGUI rareGemDepositedText;
-
 
     [Header("Session Stats UI")]
     [SerializeField] private TextMeshProUGUI totalCollectedText;
@@ -37,9 +36,7 @@ public class PlayerBackpack : MonoBehaviour
     [Header("References")]
     [SerializeField] private GemPool gemPool;
 
-    // Nuestro nuevo aggregate root:
     private SessionGemStats sessionStats = new SessionGemStats();
-
     private Coroutine rotatingGemsCoroutine;
     private float warningTimer;
 
@@ -50,7 +47,6 @@ public class PlayerBackpack : MonoBehaviour
 
     void Update()
     {
-        // Lógica de timer para mensajes de advertencia
         if (warningTimer > 0f)
         {
             warningTimer -= Time.deltaTime;
@@ -63,7 +59,6 @@ public class PlayerBackpack : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.R))
         {
-            environmentAnalyzer.UpdateGemsInScene();
             environmentAnalyzer.UpdateEnvironmentUI();
         }
 
@@ -71,19 +66,27 @@ public class PlayerBackpack : MonoBehaviour
         {
             if (rotatingGemsCoroutine != null)
                 StopCoroutine(rotatingGemsCoroutine);
-
             rotatingGemsCoroutine = StartCoroutine(environmentAnalyzer.DisplayGroupedGems());
         }
     }
 
     public void UpdateUI()
     {
-        // Estadísticas básicas
+        
+        var bagSummary = backpack.Aggregate(
+            (Count: 0, TotalValue: 0, TotalWeight: 0f),
+            (acc, gem) => (
+                acc.Count + 1,
+                acc.TotalValue + gem.Value,
+                acc.TotalWeight + gem.Weight
+            )
+        );
+
         if (gemCountText != null)
-            gemCountText.text = $"Gemas: {backpack.Count}";
+            gemCountText.text = $"Gemas: {bagSummary.Count}";
 
         if (totalWeightText != null)
-            totalWeightText.text = $"Peso: {backpack.Sum(g => g.Weight):F1} / {maxWeight}";
+            totalWeightText.text = $"Peso: {bagSummary.TotalWeight:F1} / {maxWeight}";
 
         if (gemStatsText != null)
         {
@@ -93,13 +96,12 @@ public class PlayerBackpack : MonoBehaviour
                 statsText += $"{stat.Key}: {stat.Value.Count} gemas, Valor: {stat.Value.TotalValue}, Peso: {stat.Value.TotalWeight:F1}\n";
             gemStatsText.text = statsText;
         }
-        
+
         if (rareGemCountText != null)
         {
             int rareInBackpack = backpack.OfType<RareGem>().Count();
             rareGemCountText.text = $"Gemas Raras en Mochila: {rareInBackpack}";
         }
-
 
         if (highValueGemsText != null)
         {
@@ -113,13 +115,23 @@ public class PlayerBackpack : MonoBehaviour
             gemTypesText.text = $"Tipos recolectados: {string.Join(", ", types)}";
         }
 
-        if (totalValueText != null)
-        {
-            int totalValue = depositedGems.Sum(g => g.Value);
-            totalValueText.text = $"Valor depositado: {totalValue}";
-        }
+        // ==> ACÁ ESTÁ EL AGGREGGATE <==
+        var depositSummary = depositedGems.Aggregate(
+            (Count: 0, TotalValue: 0, TotalWeight: 0f),
+            (acc, gem) => (
+                acc.Count + 1,
+                acc.TotalValue + gem.Value,
+                acc.TotalWeight + gem.Weight
+            )
+        );
 
-        // —— NUEVO BLOQUE: Session Stats UI ——
+        if (totalValueText != null)
+            totalValueText.text = $"Valor depositado: {depositSummary.TotalValue}";
+
+        if (rareGemDepositedText != null)
+            rareGemDepositedText.text = $"Gemas Raras depositadas: { depositedGems.OfType<RareGem>().Count() }";
+
+        // Session Stats UI
         if (totalCollectedText != null)
             totalCollectedText.text = $"Total recogidas: {sessionStats.TotalCollectedCount}";
 
@@ -191,12 +203,6 @@ public class PlayerBackpack : MonoBehaviour
             {
                 warningText.text = "Gemas depositadas correctamente.";
                 warningTimer = warningDisplayTime;
-            }
-            
-            if (rareGemDepositedText != null)
-            {
-                int rareDeposited = depositedGems.OfType<RareGem>().Count();
-                rareGemDepositedText.text = $"Gemas Raras depositadas: {rareDeposited}";
             }
 
             UpdateUI();

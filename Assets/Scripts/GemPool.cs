@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using TMPro;
+using System.Text;
 
 public class GemPool : MonoBehaviour
 {
@@ -15,6 +17,9 @@ public class GemPool : MonoBehaviour
     [Range(0f,1f)] [SerializeField] private float rareChance = 0.1f;
     [SerializeField] private Vector3 spawnAreaMin = new Vector3(-10f,0.5f,-10f);
     [SerializeField] private Vector3 spawnAreaMax = new Vector3( 10f,0.5f, 10f);
+    [SerializeField] private TextMeshProUGUI spawnHistoryText;
+    
+
 
     private List<GameObject> gemPool = new List<GameObject>();
     private List<object> spawnHistory = new List<object>();
@@ -41,6 +46,7 @@ public class GemPool : MonoBehaviour
 
     public void SpawnGem()
     {
+        ShowSpawnHistory();
         bool makeRare = rareGemPrefab != null && Random.value < rareChance;
         GameObject go;
 
@@ -55,6 +61,17 @@ public class GemPool : MonoBehaviour
 
         InitializeSpawn(go, makeRare);
     }
+    
+    public void ShowSpawnHistory()
+    {
+        if (spawnHistoryText == null) return;
+        var sb = new StringBuilder("Spawn History:\n");
+        foreach (var rec in spawnHistory)
+            sb.AppendLine(rec.ToString());
+        spawnHistoryText.text = sb.ToString();
+        spawnHistoryText.gameObject.SetActive(true);
+    }
+
 
     private GameObject GetFromPool()
     {
